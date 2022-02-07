@@ -159,7 +159,7 @@ namespace WordleSolver // Note: actual namespace depends on the project name.
         {
             var options = new OptionSet()
             {
-                { "?|help", "print usage.", _ => PrintHelp=true },
+                { "?|help", "print help.", _ => PrintHelp=true },
                 { "w|words=", "only try these words.", a =>
                 {
                     foreach (var word in a.Split(' ', ','))
