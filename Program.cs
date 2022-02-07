@@ -221,6 +221,15 @@ namespace WordleSolver // Note: actual namespace depends on the project name.
                 Console.WriteLine($"Word is: {candidateWords[0]}");
                 return 0;
             }
+            else if (candidateWords.Count <= 10)
+            {
+                Console.WriteLine($"{candidateWords.Count} possible words:");
+                foreach (var word in candidateWords)
+                {
+                    Console.WriteLine(word);
+                }
+                Console.WriteLine();
+            }
 
             var testWords = new List<Word>(AllWords);
             if (HardMode)
@@ -234,8 +243,10 @@ namespace WordleSolver // Note: actual namespace depends on the project name.
 
             var allValues = RunLevel(testWords, candidateWords, Level, logger);
 
-            logger.Log("");
-            Console.WriteLine("Top 10:");
+            if (Verbosity > 0)
+                Console.WriteLine();
+
+            Console.WriteLine("Best next guesses:");
 
             foreach (var (path, value) in allValues.Where(a => a.value > 0).OrderBy(a => a.value).Take(10))
             {
