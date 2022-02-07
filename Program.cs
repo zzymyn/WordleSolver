@@ -167,7 +167,7 @@ namespace WordleSolver // Note: actual namespace depends on the project name.
                         RestrictWords.Add(word);
                     }
                 }},
-                { "l|level=", "set operation level (default level 1).", (int a) => Level = a },
+                { "l|level=", "set operation level 1, 2, or 3 (default level 1).", (int a) => Level = a },
                 { "v|verbose", "increase verbosity.", _ => ++Verbosity },
             };
 
@@ -175,12 +175,22 @@ namespace WordleSolver // Note: actual namespace depends on the project name.
             {
                 var extraArgs = options.Parse(args);
                 if (extraArgs.Count > 0)
-                    throw new Exception("too many arguments");
+                    throw new Exception("too many arguments.");
+                if (Level < 1 || Level > 3)
+                    throw new Exception("operation level can only be 1, 2 or 3.");
+                if (Level == 3 && RestrictWords.Count <= 0)
+                    throw new Exception("must provide word list for operation level 3.");
             }
-            catch (OptionException)
+            catch (OptionException ex)
             {
+                Console.Error.WriteLine($"Error: {ex.Message}");
                 options.WriteOptionDescriptions(Console.Error);
-                throw;
+                return 1;
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Error: {ex.Message}");
+                return 1;
             }
 
             var logger = new Logger(Verbosity);
