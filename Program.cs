@@ -150,25 +150,29 @@ namespace WordleSolver // Note: actual namespace depends on the project name.
             "00000", "00001", "00002", "00010", "00011", "00012", "00020", "00021", "00022", "00100", "00101", "00102", "00110", "00111", "00112", "00120", "00121", "00122", "00200", "00201", "00202", "00210", "00211", "00212", "00220", "00221", "00222", "01000", "01001", "01002", "01010", "01011", "01012", "01020", "01021", "01022", "01100", "01101", "01102", "01110", "01111", "01112", "01120", "01121", "01122", "01200", "01201", "01202", "01210", "01211", "01212", "01220", "01221", "01222", "02000", "02001", "02002", "02010", "02011", "02012", "02020", "02021", "02022", "02100", "02101", "02102", "02110", "02111", "02112", "02120", "02121", "02122", "02200", "02201", "02202", "02210", "02211", "02212", "02220", "02221", "02222", "10000", "10001", "10002", "10010", "10011", "10012", "10020", "10021", "10022", "10100", "10101", "10102", "10110", "10111", "10112", "10120", "10121", "10122", "10200", "10201", "10202", "10210", "10211", "10212", "10220", "10221", "10222", "11000", "11001", "11002", "11010", "11011", "11012", "11020", "11021", "11022", "11100", "11101", "11102", "11110", "11111", "11112", "11120", "11121", "11122", "11200", "11201", "11202", "11210", "11211", "11212", "11220", "11221", "11222", "12000", "12001", "12002", "12010", "12011", "12012", "12020", "12021", "12022", "12100", "12101", "12102", "12110", "12111", "12112", "12120", "12121", "12122", "12200", "12201", "12202", "12210", "12211", "12212", "12220", "12221", "12222", "20000", "20001", "20002", "20010", "20011", "20012", "20020", "20021", "20022", "20100", "20101", "20102", "20110", "20111", "20112", "20120", "20121", "20122", "20200", "20201", "20202", "20210", "20211", "20212", "20220", "20221", "20222", "21000", "21001", "21002", "21010", "21011", "21012", "21020", "21021", "21022", "21100", "21101", "21102", "21110", "21111", "21112", "21120", "21121", "21122", "21200", "21201", "21202", "21210", "21211", "21212", "21220", "21221", "21222", "22000", "22001", "22002", "22010", "22011", "22012", "22020", "22021", "22022", "22100", "22101", "22102", "22110", "22111", "22112", "22120", "22121", "22122", "22200", "22201", "22202", "22210", "22211", "22212", "22220", "22221", "22222"
         };
 
+        private static readonly List<(Word guess, Word answer)> Guesses = new();
         private static readonly List<Word> RestrictWords = new();
         private static int Level = 1;
         private static bool PrintHelp;
         private static int Verbosity;
+        private static bool HardMode;
 
         static int Main(string[] args)
         {
             var options = new OptionSet()
             {
                 { "?|help", "print help.", _ => PrintHelp=true },
-                { "w|words=", "only try these words.", a =>
+                { "w|words=", "only try these words, comma separated.", a =>
                 {
                     foreach (var word in a.Split(' ', ','))
                     {
                         RestrictWords.Add(word);
                     }
                 }},
+                { "g|guess={:}", "add a guess and answer, eg IRATE:00202.", (k, v) => Guesses.Add((k, v)) },
                 { "l|level=", "set operation level 1, 2, or 3 (default level 1).", (int a) => Level = a },
                 { "v|verbose", "increase verbosity.", _ => ++Verbosity },
+                { "h|hardmode", "enable hard-mode.", _=> HardMode = true },
             };
 
             try
@@ -178,8 +182,8 @@ namespace WordleSolver // Note: actual namespace depends on the project name.
                     throw new Exception("too many arguments.");
                 if (Level < 1 || Level > 3)
                     throw new Exception("operation level can only be 1, 2 or 3.");
-                if (Level == 3 && RestrictWords.Count <= 0)
-                    throw new Exception("must provide word list for operation level 3.");
+                if (Level == 3 && RestrictWords.Count <= 0 && Guesses.Count <= 0)
+                    throw new Exception("must provide word list or guresses for operation level 3.");
             }
             catch (OptionException ex)
             {
@@ -201,13 +205,34 @@ namespace WordleSolver // Note: actual namespace depends on the project name.
                 return 0;
             }
 
+            var candidateWords = new List<Word>(AllWords);
+            foreach (var (guess, answer) in Guesses)
+            {
+                candidateWords = RemoveCandidates(candidateWords, guess, answer);
+            }
+
+            if (candidateWords.Count <= 0)
+            {
+                Console.WriteLine("No solutions exist.");
+                return 0;
+            }
+            else if (candidateWords.Count == 1)
+            {
+                Console.WriteLine($"Word is: {candidateWords[0]}");
+                return 0;
+            }
+
             var testWords = new List<Word>(AllWords);
+            if (HardMode)
+            {
+                testWords = new List<Word>(candidateWords);
+            }
             if (RestrictWords.Count > 0)
             {
                 testWords = RestrictWords;
             }
 
-            var allValues = RunLevel(testWords, Level, logger);
+            var allValues = RunLevel(testWords, candidateWords, Level, logger);
 
             logger.Log("");
             Console.WriteLine("Top 10:");
@@ -220,38 +245,39 @@ namespace WordleSolver // Note: actual namespace depends on the project name.
             return 0;
         }
 
-        private static List<(string path, int value)> RunLevel(List<Word> testWords, int level, Logger logger)
+        private static List<(string path, int value)> RunLevel(IReadOnlyList<Word> testWords, IReadOnlyList<Word> candidateWords, int level, Logger logger)
         {
             if (level <= 1)
             {
                 return testWords.Select(guess =>
                 {
-                    return (guess.ToString(), RunLevel1(AllWords, guess, logger.SubLogger(guess)));
+                    return (guess.ToString(), RunLevel1(candidateWords, guess, logger.SubLogger(guess)));
                 }).ToList();
             }
             else if (level <= 2)
             {
                 return testWords.Select(guess =>
                 {
-                    return (guess.ToString(), RunLevel2(AllWords, guess, logger.SubLogger(guess)));
+                    return (guess.ToString(), RunLevel2(candidateWords, guess, logger.SubLogger(guess)));
                 }).ToList();
             }
             else
             {
                 return testWords.SelectMany(guess1 =>
                 {
-                    return AllWords.AsParallel().Select(guess2 =>
+                    return candidateWords.AsParallel().Select(guess2 =>
                     {
                         var logger2 = logger.SubLogger($"{guess1},{guess2}");
 
                         var mmr = AllAnswers.Select(answer1 =>
                         {
-                            var next = RemoveCandidates(AllWords, guess1, answer1);
+                            var next = RemoveCandidates(candidateWords, guess1, answer1);
                             return RunLevel1(next, guess2, logger2.SubLogger(answer1));
                         }).ToList();
 
                         var value = mmr.Count <= 0 ? 0 : mmr.Max();
-                        logger2.Log($": {value}");
+                        if (value > 0)
+                            logger2.Log($": {value}");
                         return ($"{guess1},{guess2}", value);
                     });
                 }).ToList();
@@ -265,7 +291,8 @@ namespace WordleSolver // Note: actual namespace depends on the project name.
                 return RunLevel1Inner(words, guess, answer, logger.SubLogger(answer));
             }).ToList();
             var value = answers.Count <= 0 ? 0 : answers.Max();
-            logger.Log($": {value}");
+            if (value > 0)
+                logger.Log($": {value}");
             return value;
         }
 
@@ -273,7 +300,8 @@ namespace WordleSolver // Note: actual namespace depends on the project name.
         {
             var next = RemoveCandidates(words, guess, answer);
             var value = next.Count;
-            logger.Log($": {value}");
+            if (value > 0)
+                logger.Log($": {value}");
             return value;
         }
 
@@ -284,7 +312,8 @@ namespace WordleSolver // Note: actual namespace depends on the project name.
                 return RunLevel2Inner(words, guess, answer, logger.SubLogger(answer));
             }).ToList();
             var value = answers.Count <= 0 ? 0 : answers.Max();
-            logger.Log($": {value}");
+            if (value > 0)
+                logger.Log($": {value}");
             return value;
         }
 
@@ -293,7 +322,8 @@ namespace WordleSolver // Note: actual namespace depends on the project name.
             var next = RemoveCandidates(words, guess, answer);
             var mmr = MinMaxNextGuess(next);
             var value = mmr.Count <= 0 ? 0 : mmr.Max();
-            logger.Log($": {value}");
+            if (value > 0)
+                logger.Log($": {value}");
             return value;
         }
 
@@ -303,7 +333,7 @@ namespace WordleSolver // Note: actual namespace depends on the project name.
 
             foreach (var word in candidates)
             {
-                if (GetAnswer(word, guess) == answer)
+                if (GetAnswer(guess, word) == answer)
                     result.Add(word);
             }
 
@@ -312,6 +342,9 @@ namespace WordleSolver // Note: actual namespace depends on the project name.
 
         private static List<int> MinMaxNextGuess(IReadOnlyList<Word> candidates)
         {
+            // supposed to use AllAnswers here (not candidates) but it's slower
+
+
             return candidates.AsParallel().Select(guess =>
             {
                 return AllAnswers.Max(answer =>
