@@ -157,7 +157,7 @@ namespace WordleSolver // Note: actual namespace depends on the project name.
             return result;
         }
 
-        private static ParallelQuery<int> MinMaxNextGuess(IReadOnlyList<Word> candidates)
+        private static List<int> MinMaxNextGuess(IReadOnlyList<Word> candidates)
         {
             return candidates.AsParallel().Select(guess =>
             {
@@ -168,7 +168,7 @@ namespace WordleSolver // Note: actual namespace depends on the project name.
                         return GetAnswer(guess, solution) == answer;
                     });
                 });
-            });
+            }).ToList();
         }
 
         private static Word GetAnswer(Word gs, Word ss)
