@@ -300,7 +300,7 @@ namespace WordleSolver
                         return RunLevel(next, 0, logger3);
                     }).ToList();
 
-                    // minmax:
+                    // minmax (TODO: broken -- fix this):
                     var value = values
                         .GroupBy(a => a.path, (k, v) => (k, v.Max(a => a.value)))
                         .Min(a => a.Item2);
