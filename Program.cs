@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 
 namespace WordleSolver
 {
-    internal class Program
+    internal partial class Program
     {
         [DebuggerDisplay("{DebuggerDisplay,nq}")]
         private struct Word : IEquatable<Word>
@@ -17,34 +17,6 @@ namespace WordleSolver
             public char C4;
 
             private string DebuggerDisplay => $"\"{C0}{C1}{C2}{C3}{C4}\"";
-
-            public char this[int index]
-            {
-                get
-                {
-                    switch (index)
-                    {
-                        case 0: return C0;
-                        case 1: return C1;
-                        case 2: return C2;
-                        case 3: return C3;
-                        case 4: return C4;
-                        default: throw new IndexOutOfRangeException();
-                    }
-                }
-                set
-                {
-                    switch (index)
-                    {
-                        case 0: C0 = value; break;
-                        case 1: C1 = value; break;
-                        case 2: C2 = value; break;
-                        case 3: C3 = value; break;
-                        case 4: C4 = value; break;
-                        default: throw new IndexOutOfRangeException();
-                    }
-                }
-            }
 
             public Word(char c0, char c1, char c2, char c3, char c4)
             {
@@ -389,41 +361,6 @@ namespace WordleSolver
                     });
                 });
             }).ToList();
-        }
-
-        private static Word GetAnswer(Word gs, Word ss)
-        {
-            var rs = new Word();
-            var vs = new Word();
-
-            for (int i = 0; i < 5; i++)
-            {
-                rs[i] = '0';
-            }
-
-            for (var i = 0; i < 5; ++i)
-            {
-                if (gs[i] == ss[i])
-                {
-                    rs[i] = '2';
-                    vs[i] = '1';
-                }
-            }
-
-            for (var i = 0; i < 5; ++i)
-            {
-                for (var j = 0; j < 5; ++j)
-                {
-                    if (vs[j] == '\0' && gs[i] == ss[j])
-                    {
-                        rs[i] = '1';
-                        vs[j] = '1';
-                        break;
-                    }
-                }
-            }
-
-            return rs;
         }
     }
 }

@@ -11,4 +11,23 @@
     <PackageReference Include="Mono.Options" Version="6.12.0.148" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="Program.GetAnswer.tt">
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <LastGenOutput>Program.GetAnswer.cs</LastGenOutput>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Service Include="{508349b6-6b84-4df5-91f0-309beebad82d}" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="Program.GetAnswer.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Program.GetAnswer.tt</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
 </Project>
