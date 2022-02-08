@@ -2,7 +2,7 @@
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
 
-namespace WordleSolver // Note: actual namespace depends on the project name.
+namespace WordleSolver
 {
     internal class Program
     {
@@ -353,9 +353,6 @@ namespace WordleSolver // Note: actual namespace depends on the project name.
 
         private static List<int> MinMaxNextGuess(IReadOnlyList<Word> candidates)
         {
-            // supposed to use AllAnswers here (not candidates) but it's slower
-
-
             return candidates.AsParallel().Select(guess =>
             {
                 return AllAnswers.Max(answer =>
