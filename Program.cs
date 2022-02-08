@@ -20,11 +20,11 @@ namespace WordleSolver
 
             public Word(char c0, char c1, char c2, char c3, char c4)
             {
-                C0 = char.ToUpperInvariant(c0);
-                C1 = char.ToUpperInvariant(c1);
-                C2 = char.ToUpperInvariant(c2);
-                C3 = char.ToUpperInvariant(c3);
-                C4 = char.ToUpperInvariant(c4);
+                C0 = c0;
+                C1 = c1;
+                C2 = c2;
+                C3 = c3;
+                C4 = c4;
             }
 
             public Word(string txt)
