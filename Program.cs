@@ -102,7 +102,7 @@ namespace WordleSolver
 
             public Logger SubLogger(string prefix)
             {
-                return new Logger(Prefix.Length == 0 ? prefix : $"{Prefix},{prefix}", Level - 1);
+                return new Logger(Prefix.Length == 0 ? prefix : $"{Prefix}:{prefix}", Level - 1);
             }
 
             public void Log(string message)
@@ -125,12 +125,13 @@ namespace WordleSolver
         private static readonly Regex ArgMatch = new Regex(@"^([a-zA-Z]{5}):([012]{5})$");
 
         private static readonly List<(Word guess, Word answer)> Guesses = new();
-        private static readonly List<Word> RestrictWords = new();
+        private static readonly List<List<Word>> ExplicitGuessWords = new();
         private static int Level = 1;
         private static bool PrintHelp;
         private static int Verbosity;
         private static bool HardMode;
         private static bool Force;
+        private static int Count = 10;
 
         static int Main(string[] args)
         {
@@ -139,13 +140,19 @@ namespace WordleSolver
                 { "?|help", "Print help.", _ => PrintHelp = true },
                 { "w|words=", "Only try these words as guesses, comma separated.", a =>
                 {
+                    var words = new List<Word>();
                     foreach (var word in a.Split(' ', ','))
                     {
-                        RestrictWords.Add(word);
+                        words.Add(word);
                     }
+                    ExplicitGuessWords.Add(words);
                 }},
-                { "l|level=", "set operation level 1, 2, or 3 (default level 1).\nNote: anything above level 1 isn't useful for solving a game.", (int a) => Level = a },
-                { "v|verbose", "Increase verbosity.", _ => ++Verbosity },
+                { "c|count=", "Maximum number of potential guesses to print (default 10)", (int a) => Count = a },
+                { "l|level=", "set operation level 1 or 2 (default level 1).\nNote: anything above level 1 isn't useful for solving a game.", (int a) => Level = a },
+                { "v|verbose:", "Increase [or set] verbosity level.", (int? a) =>
+                {
+                    Verbosity = a ?? (Verbosity + 1);
+                }},
                 { "h|hardmode", "Enable hard-mode (all guesses must be possible solutions).", _=> HardMode = true },
                 { "f|force", "Force run (even if it will be really slow or useless).", _ => Force = true },
             };
@@ -162,10 +169,10 @@ namespace WordleSolver
                     Guesses.Add((m.Groups[1].Value, m.Groups[2].Value));
                 }
 
-                if (Level < 1 || Level > 3)
-                    throw new Exception("Operation level can only be 1, 2 or 3.");
-                if (Level == 3 && RestrictWords.Count <= 0 && Guesses.Count <= 0 && !Force)
-                    throw new Exception("Must provide word list or guresses for operation level 3 (use --force to override).");
+                if (Level < 1 || Level > 2)
+                    throw new Exception("Operation level can only be 1 or 2.");
+                if (Level == 2 && ExplicitGuessWords.Count <= 0 && Guesses.Count <= 0 && !Force)
+                    throw new Exception("Must provide word list or guresses for operation level 2 (use --force to override).");
             }
             catch (OptionException ex)
             {
@@ -195,7 +202,7 @@ namespace WordleSolver
                 return 0;
             }
 
-            if (RestrictWords.Count <= 0 && Guesses.Count <= 0 && Level == 1 && !Force)
+            if (ExplicitGuessWords.Count <= 0 && Guesses.Count <= 0 && Level == 1 && !Force)
             {
                 Console.WriteLine($"Best first guess is: RAISE");
                 Console.WriteLine($"You can also try: ARISE, AROSE, RATIO, IRATE, ALERT, ALTER, LATER");
@@ -217,122 +224,107 @@ namespace WordleSolver
             }
             else if (candidateWords.Count == 1)
             {
-                Console.WriteLine($"Word is: {candidateWords[0]}");
+                Console.WriteLine($"Word is:");
+                Console.WriteLine(candidateWords[0]);
                 return 0;
             }
             else if (candidateWords.Count <= 10)
             {
                 Console.WriteLine($"{candidateWords.Count} possible words:");
-                foreach (var word in candidateWords)
-                {
-                    Console.WriteLine(word);
-                }
+                Console.WriteLine(string.Join(", ", candidateWords));
+                Console.WriteLine();
+            }
+            else
+            {
+                Console.WriteLine($"{candidateWords.Count} possible words.");
                 Console.WriteLine();
             }
 
-            var testWords = new List<Word>(AllWords);
-            if (HardMode)
-            {
-                testWords = new List<Word>(candidateWords);
-            }
-            if (RestrictWords.Count > 0)
-            {
-                testWords = RestrictWords;
-            }
-
-            var allValues = RunLevel(testWords, candidateWords, Level, logger);
+            var allValues = RunLevel(candidateWords, Level, logger);
 
             if (Verbosity > 0)
                 Console.WriteLine();
 
             Console.WriteLine("Best next guesses:");
 
-            foreach (var (path, value) in allValues.Where(a => a.value > 0).OrderBy(a => a.value).Take(10))
+            foreach (var (path, value) in allValues.Where(a => a.value > 0).OrderBy(a => a.value).Take(Count))
             {
-                Console.WriteLine($"{path}: {value}");
+                Console.WriteLine($"{path} - {value}");
             }
 
             return 0;
         }
 
-        private static List<(string path, int value)> RunLevel(IReadOnlyList<Word> testWords, IReadOnlyList<Word> candidateWords, int level, Logger logger)
+        private static IReadOnlyList<Word> GetGuessWordsForPly(int ply, IReadOnlyList<Word> candidateWords)
+        {
+            if (Level - 1 - ply < ExplicitGuessWords.Count)
+                return ExplicitGuessWords[Level - 1 - ply];
+            if (HardMode)
+                return candidateWords;
+            return AllWords;
+        }
+
+        private static List<(string path, int value)> RunLevel(IReadOnlyList<Word> candidateWords, int level, Logger logger)
         {
             if (level <= 1)
             {
-                return testWords.Select(guess =>
+                return GetGuessWordsForPly(0, candidateWords).AsParallel().Select(guess =>
                 {
-                    return (guess.ToString(), RunLevel1(candidateWords, guess, logger.SubLogger(guess)));
-                }).ToList();
-            }
-            else if (level <= 2)
-            {
-                return testWords.Select(guess =>
-                {
-                    return (guess.ToString(), RunLevel2(candidateWords, guess, logger.SubLogger(guess)));
+                    var logger2 = logger.SubLogger(guess);
+
+                    var value = AllAnswers.AsParallel().Max(answer =>
+                    {
+                        var logger3 = logger2.SubLogger(answer);
+                        var value = candidateWords.Count(word => GetAnswer(guess, word) == answer);
+                        if (value > 0)
+                            logger3.Log($" - {value}");
+                        return value;
+                    });
+
+                    if (value > 0)
+                        logger2.Log($" - {value}");
+
+                    return (guess.ToString(), value);
                 }).ToList();
             }
             else
             {
-                return testWords.SelectMany(guess1 =>
+                return GetGuessWordsForPly(1, candidateWords).Select(guess1 =>
                 {
-                    return candidateWords.AsParallel().Select(guess2 =>
+                    var logger2 = logger.SubLogger(guess1);
+
+                    var values = AllAnswers.SelectMany(answer1 =>
                     {
-                        var logger2 = logger.SubLogger($"{guess1},{guess2}");
+                        var logger3 = logger2.SubLogger(answer1);
+                        var next = RemoveCandidates(candidateWords, guess1, answer1);
+                        return RunLevel(next, 0, logger3);
+                    }).ToList();
 
-                        var mmr = AllAnswers.Select(answer1 =>
-                        {
-                            var next = RemoveCandidates(candidateWords, guess1, answer1);
-                            return RunLevel1(next, guess2, logger2.SubLogger(answer1));
-                        }).ToList();
+                    // minmax:
+                    var value = values
+                        .GroupBy(a => a.path, (k, v) => (k, v.Max(a => a.value)))
+                        .Min(a => a.Item2);
 
-                        var value = mmr.Count <= 0 ? 0 : mmr.Max();
-                        if (value > 0)
-                            logger2.Log($": {value}");
-                        return ($"{guess1},{guess2}", value);
-                    });
+                    if (value > 0)
+                        logger2.Log($" - {value}");
+
+                    return (guess1.ToString(), value);
                 }).ToList();
             }
         }
 
-        private static int RunLevel1(IReadOnlyList<Word> words, Word guess, Logger logger)
+        private static int RunLevel1(IReadOnlyList<Word> candidateWords, Word guess, Logger logger)
         {
-            var answers = AllAnswers.AsParallel().Select(answer =>
+            var value = AllAnswers.AsParallel().Max(answer =>
             {
-                return RunLevel1Inner(words, guess, answer, logger.SubLogger(answer));
-            }).ToList();
-            var value = answers.Count <= 0 ? 0 : answers.Max();
+                var logger2 = logger.SubLogger(answer);
+                var value = candidateWords.Count(word => GetAnswer(guess, word) == answer);
+                if (value > 0)
+                    logger2.Log($" - {value}");
+                return value;
+            });
             if (value > 0)
-                logger.Log($": {value}");
-            return value;
-        }
-
-        private static int RunLevel1Inner(IReadOnlyList<Word> words, Word guess, Word answer, Logger logger)
-        {
-            var value = words.Count(word => GetAnswer(guess, word) == answer);
-            if (value > 0)
-                logger.Log($": {value}");
-            return value;
-        }
-
-        private static int RunLevel2(IReadOnlyList<Word> words, Word guess, Logger logger)
-        {
-            var answers = AllAnswers.AsParallel().Select(answer =>
-            {
-                return RunLevel2Inner(words, guess, answer, logger.SubLogger(answer));
-            }).ToList();
-            var value = answers.Count <= 0 ? 0 : answers.Max();
-            if (value > 0)
-                logger.Log($": {value}");
-            return value;
-        }
-
-        private static int RunLevel2Inner(IReadOnlyList<Word> words, Word guess, Word answer, Logger logger)
-        {
-            var next = RemoveCandidates(words, guess, answer);
-            var mmr = MinMaxNextGuess(next);
-            var value = mmr.Count <= 0 ? 0 : mmr.Max();
-            if (value > 0)
-                logger.Log($": {value}");
+                logger.Log($" - {value}");
             return value;
         }
 
@@ -347,20 +339,6 @@ namespace WordleSolver
             }
 
             return result;
-        }
-
-        private static List<int> MinMaxNextGuess(IReadOnlyList<Word> candidates)
-        {
-            return candidates.AsParallel().Select(guess =>
-            {
-                return AllAnswers.Max(answer =>
-                {
-                    return candidates.Count(solution =>
-                    {
-                        return GetAnswer(guess, solution) == answer;
-                    });
-                });
-            }).ToList();
         }
     }
 }
