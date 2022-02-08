@@ -1,6 +1,7 @@
 ﻿using Mono.Options;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
+using System.Text.RegularExpressions;
 
 namespace WordleSolver
 {
@@ -47,22 +48,22 @@ namespace WordleSolver
 
             public Word(char c0, char c1, char c2, char c3, char c4)
             {
-                C0 = c0;
-                C1 = c1;
-                C2 = c2;
-                C3 = c3;
-                C4 = c4;
+                C0 = char.ToUpperInvariant(c0);
+                C1 = char.ToUpperInvariant(c1);
+                C2 = char.ToUpperInvariant(c2);
+                C3 = char.ToUpperInvariant(c3);
+                C4 = char.ToUpperInvariant(c4);
             }
 
             public Word(string txt)
             {
                 if (txt == null) throw new ArgumentNullException(nameof(txt));
                 if (txt.Length != 5) throw new ArgumentException($"Word '{txt}' does not contain 5 letters.");
-                C0 = txt[0];
-                C1 = txt[1];
-                C2 = txt[2];
-                C3 = txt[3];
-                C4 = txt[4];
+                C0 = char.ToUpperInvariant(txt[0]);
+                C1 = char.ToUpperInvariant(txt[1]);
+                C2 = char.ToUpperInvariant(txt[2]);
+                C3 = char.ToUpperInvariant(txt[3]);
+                C4 = char.ToUpperInvariant(txt[4]);
             }
 
             public static implicit operator Word(string txt)
@@ -147,8 +148,9 @@ namespace WordleSolver
         };
         private static readonly Word[] AllAnswers = new Word[]
         {
-            "00000", "00001", "00002", "00010", "00011", "00012", "00020", "00021", "00022", "00100", "00101", "00102", "00110", "00111", "00112", "00120", "00121", "00122", "00200", "00201", "00202", "00210", "00211", "00212", "00220", "00221", "00222", "01000", "01001", "01002", "01010", "01011", "01012", "01020", "01021", "01022", "01100", "01101", "01102", "01110", "01111", "01112", "01120", "01121", "01122", "01200", "01201", "01202", "01210", "01211", "01212", "01220", "01221", "01222", "02000", "02001", "02002", "02010", "02011", "02012", "02020", "02021", "02022", "02100", "02101", "02102", "02110", "02111", "02112", "02120", "02121", "02122", "02200", "02201", "02202", "02210", "02211", "02212", "02220", "02221", "02222", "10000", "10001", "10002", "10010", "10011", "10012", "10020", "10021", "10022", "10100", "10101", "10102", "10110", "10111", "10112", "10120", "10121", "10122", "10200", "10201", "10202", "10210", "10211", "10212", "10220", "10221", "10222", "11000", "11001", "11002", "11010", "11011", "11012", "11020", "11021", "11022", "11100", "11101", "11102", "11110", "11111", "11112", "11120", "11121", "11122", "11200", "11201", "11202", "11210", "11211", "11212", "11220", "11221", "11222", "12000", "12001", "12002", "12010", "12011", "12012", "12020", "12021", "12022", "12100", "12101", "12102", "12110", "12111", "12112", "12120", "12121", "12122", "12200", "12201", "12202", "12210", "12211", "12212", "12220", "12221", "12222", "20000", "20001", "20002", "20010", "20011", "20012", "20020", "20021", "20022", "20100", "20101", "20102", "20110", "20111", "20112", "20120", "20121", "20122", "20200", "20201", "20202", "20210", "20211", "20212", "20220", "20221", "20222", "21000", "21001", "21002", "21010", "21011", "21012", "21020", "21021", "21022", "21100", "21101", "21102", "21110", "21111", "21112", "21120", "21121", "21122", "21200", "21201", "21202", "21210", "21211", "21212", "21220", "21221", "21222", "22000", "22001", "22002", "22010", "22011", "22012", "22020", "22021", "22022", "22100", "22101", "22102", "22110", "22111", "22112", "22120", "22121", "22122", "22200", "22201", "22202", "22210", "22211", "22212", "22220", "22221", "22222"
+            "00000", "00001", "00002", "00010", "00011", "00012", "00020", "00021", "00022", "00100", "00101", "00102", "00110", "00111", "00112", "00120", "00121", "00122", "00200", "00201", "00202", "00210", "00211", "00212", "00220", "00221", "00222", "01000", "01001", "01002", "01010", "01011", "01012", "01020", "01021", "01022", "01100", "01101", "01102", "01110", "01111", "01112", "01120", "01121", "01122", "01200", "01201", "01202", "01210", "01211", "01212", "01220", "01221", "01222", "02000", "02001", "02002", "02010", "02011", "02012", "02020", "02021", "02022", "02100", "02101", "02102", "02110", "02111", "02112", "02120", "02121", "02122", "02200", "02201", "02202", "02210", "02211", "02212", "02220", "02221", "02222", "10000", "10001", "10002", "10010", "10011", "10012", "10020", "10021", "10022", "10100", "10101", "10102", "10110", "10111", "10112", "10120", "10121", "10122", "10200", "10201", "10202", "10210", "10211", "10212", "10220", "10221", "10222", "11000", "11001", "11002", "11010", "11011", "11012", "11020", "11021", "11022", "11100", "11101", "11102", "11110", "11111", "11112", "11120", "11121", "11122", "11200", "11201", "11202", "11210", "11211", "11212", "11220", "11221", "11222", "12000", "12001", "12002", "12010", "12011", "12012", "12020", "12021", "12022", "12100", "12101", "12102", "12110", "12111", "12112", "12120", "12121", "12122", "12200", "12201", "12202", "12210", "12211", "12212", "12220", "12221", "20000", "20001", "20002", "20010", "20011", "20012", "20020", "20021", "20022", "20100", "20101", "20102", "20110", "20111", "20112", "20120", "20121", "20122", "20200", "20201", "20202", "20210", "20211", "20212", "20220", "20221", "20222", "21000", "21001", "21002", "21010", "21011", "21012", "21020", "21021", "21022", "21100", "21101", "21102", "21110", "21111", "21112", "21120", "21121", "21122", "21200", "21201", "21202", "21210", "21211", "21212", "21220", "21221", "22000", "22001", "22002", "22010", "22011", "22012", "22020", "22021", "22022", "22100", "22101", "22102", "22110", "22111", "22112", "22120", "22121", "22200", "22201", "22202", "22210", "22211", "22220", "22222"
         };
+        private static readonly Regex ArgMatch = new Regex(@"^([a-zA-Z]{5}):([012]{5})$");
 
         private static readonly List<(Word guess, Word answer)> Guesses = new();
         private static readonly List<Word> RestrictWords = new();
@@ -156,39 +158,46 @@ namespace WordleSolver
         private static bool PrintHelp;
         private static int Verbosity;
         private static bool HardMode;
+        private static bool Force;
 
         static int Main(string[] args)
         {
             var options = new OptionSet()
             {
-                { "?|help", "print help.", _ => PrintHelp=true },
-                { "w|words=", "only try these words, comma separated.", a =>
+                { "?|help", "Print help.", _ => PrintHelp = true },
+                { "w|words=", "Only try these words as guesses, comma separated.", a =>
                 {
                     foreach (var word in a.Split(' ', ','))
                     {
                         RestrictWords.Add(word);
                     }
                 }},
-                { "g|guess={:}", "add a guess and answer, eg IRATE:00202.", (k, v) => Guesses.Add((k, v)) },
-                { "l|level=", "set operation level 1, 2, or 3 (default level 1).", (int a) => Level = a },
-                { "v|verbose", "increase verbosity.", _ => ++Verbosity },
-                { "h|hardmode", "enable hard-mode.", _=> HardMode = true },
+                { "l|level=", "set operation level 1, 2, or 3 (default level 1).\nNote: anything above level 1 isn't useful for solving a game.", (int a) => Level = a },
+                { "v|verbose", "Increase verbosity.", _ => ++Verbosity },
+                { "h|hardmode", "Enable hard-mode (all guesses must be possible solutions).", _=> HardMode = true },
+                { "f|force", "Force run (even if it will be really slow or useless).", _ => Force = true },
             };
 
             try
             {
                 var extraArgs = options.Parse(args);
-                if (extraArgs.Count > 0)
-                    throw new Exception("too many arguments.");
+
+                foreach (var arg in extraArgs)
+                {
+                    var m = ArgMatch.Match(arg);
+                    if (!m.Success)
+                        throw new Exception($"Invalid argument '{arg}'.");
+                    Guesses.Add((m.Groups[1].Value, m.Groups[2].Value));
+                }
+
                 if (Level < 1 || Level > 3)
-                    throw new Exception("operation level can only be 1, 2 or 3.");
-                if (Level == 3 && RestrictWords.Count <= 0 && Guesses.Count <= 0)
-                    throw new Exception("must provide word list or guresses for operation level 3.");
+                    throw new Exception("Operation level can only be 1, 2 or 3.");
+                if (Level == 3 && RestrictWords.Count <= 0 && Guesses.Count <= 0 && !Force)
+                    throw new Exception("Must provide word list or guresses for operation level 3 (use --force to override).");
             }
             catch (OptionException ex)
             {
                 Console.Error.WriteLine($"Error: {ex.Message}");
-                options.WriteOptionDescriptions(Console.Error);
                 return 1;
             }
             catch (Exception ex)
@@ -201,7 +210,25 @@ namespace WordleSolver
 
             if (PrintHelp)
             {
+                Console.WriteLine($"Arguments:");
+                Console.WriteLine($"  Provide guesses using the format GUESS:##### where # is 0, 1, or 2:");
+                Console.WriteLine($"    0: a grey square, 1: a yellow square, 2: a green square");
+                Console.WriteLine();
+                Console.WriteLine($"Optional arguments:");
                 options.WriteOptionDescriptions(Console.Out);
+                Console.WriteLine($"Example:");
+                Console.WriteLine($"  $ WordleSolver.exe RAISE:00102 BOTCH:21000");
+                Console.WriteLine($"  Word is: BIOME");
+                Console.WriteLine();
+                return 0;
+            }
+
+            if (RestrictWords.Count <= 0 && Guesses.Count <= 0 && Level == 1 && !Force)
+            {
+                Console.WriteLine($"Best first guess is: RAISE");
+                Console.WriteLine($"You can also try: ARISE, AROSE, RATIO, IRATE, ALERT, ALTER, LATER");
+                Console.WriteLine($"These initial guesses are hard-coded, use --force to override.");
+                Console.WriteLine();
                 return 0;
             }
 
@@ -309,8 +336,7 @@ namespace WordleSolver
 
         private static int RunLevel1Inner(IReadOnlyList<Word> words, Word guess, Word answer, Logger logger)
         {
-            var next = RemoveCandidates(words, guess, answer);
-            var value = next.Count;
+            var value = words.Count(word => GetAnswer(guess, word) == answer);
             if (value > 0)
                 logger.Log($": {value}");
             return value;
