@@ -325,9 +325,20 @@ namespace WordleSolver
                 var value = AllAnswers.Max(answer =>
                 {
                     var logger3 = logger2.SubLogger(answer);
-                    var value = candidateWords.Count(word => GetAnswer(guess, word) == answer);
+
+                    // count valid candidates:
+                    var value = 0;
+                    foreach (var word in candidateWords)
+                    {
+                        if (CheckAnswer(guess, word, answer))
+                        {
+                            ++value;
+                        }
+                    }
+
                     if (value > 0)
                         logger3.Log($" - {value}");
+
                     return value;
                 });
 
@@ -376,7 +387,7 @@ namespace WordleSolver
 
             foreach (var word in candidates)
             {
-                if (GetAnswer(guess, word) == answer)
+                if (CheckAnswer(guess, word, answer))
                     result.Add(word);
             }
 

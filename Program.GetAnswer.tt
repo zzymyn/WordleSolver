@@ -8,45 +8,65 @@ namespace WordleSolver
 {
     internal partial class Program
     {
-        private static Word GetAnswer(Word gs, Word ss)
+        private static bool CheckAnswer(Word gs, Word ss, Word ans)
         {
-            var rs = new Word('0', '0', '0', '0', '0');
-
 <# for (int i = 0; i < 5; ++i) { #>
-            var v<#=i#> = gs.C<#=i#> == ss.C<#=i#>;
-            if (v<#=i#>)
-                rs.C<#=i#> = '2';
+            if (gs.C<#=i#> == ss.C<#=i#>)
+            {
+                gs.C<#=i#> = '?';
+                ss.C<#=i#> = '!';
+                if (ans.C<#=i#> != '2')
+                    return false;
+            }
+            else if (ans.C<#=i#> == '2')
+            {
+                return false;
+            }
 <# } #>
 
 <# for (int i = 0; i < 5; ++i) { #>
-            if (!v0 && gs.C<#=i#> == ss.C0)
+            if (gs.C<#=i#> == ss.C0)
             {
-                rs.C<#=i#> = '1';
-                v0 = true;
+                gs.C<#=i#> = '?';
+                ss.C0 = '!';
+                if (ans.C<#=i#> != '1')
+                    return false;
             }
-            else if (!v1 && gs.C<#=i#> == ss.C1)
+            else if (gs.C<#=i#> == ss.C1)
             {
-                rs.C<#=i#> = '1';
-                v1 = true;
+                gs.C<#=i#> = '?';
+                ss.C1 = '!';
+                if (ans.C<#=i#> != '1')
+                    return false;
             }
-            else if (!v2 && gs.C<#=i#> == ss.C2)
+            else if (gs.C<#=i#> == ss.C2)
             {
-                rs.C<#=i#> = '1';
-                v2 = true;
+                gs.C<#=i#> = '?';
+                ss.C2 = '!';
+                if (ans.C<#=i#> != '1')
+                    return false;
             }
-            else if (!v3 && gs.C<#=i#> == ss.C3)
+            else if (gs.C<#=i#> == ss.C3)
             {
-                rs.C<#=i#> = '1';
-                v3 = true;
+                gs.C<#=i#> = '?';
+                ss.C3 = '!';
+                if (ans.C<#=i#> != '1')
+                    return false;
             }
-            else if (!v4 && gs.C<#=i#> == ss.C4)
+            else if (gs.C<#=i#> == ss.C4)
             {
-                rs.C<#=i#> = '1';
-                v4 = true;
+                gs.C<#=i#> = '?';
+                ss.C4 = '!';
+                if (ans.C<#=i#> != '1')
+                    return false;
+            }
+            else if (ans.C<#=i#> == '1')
+            {
+                return false;
             }
 <# } #>
 
-            return rs;
+            return true;
         }
     }
 }
