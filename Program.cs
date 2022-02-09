@@ -293,17 +293,29 @@ namespace WordleSolver
                 {
                     var logger2 = logger.SubLogger(guess1);
 
-                    var values = AllAnswers.SelectMany(answer1 =>
+                    var values = AllAnswers.Select(answer1 =>
                     {
                         var logger3 = logger2.SubLogger(answer1);
                         var next = RemoveCandidates(candidateWords, guess1, answer1);
-                        return RunLevel(next, 0, logger3);
+                        var values = RunLevel(next, 0, logger3)
+                            .Where(a => a.value > 0).OrderBy(a => a.value).Take(1).ToList();
+                        if (values.Count > 0)
+                        {
+                            var value = values[0].value;
+                            if (value > 0)
+                            {
+                                logger3.Log($" - {value}");
+                            }
+                            return value;
+                        }
+                        else
+                        {
+                            return 0;
+                        }
                     }).ToList();
 
                     // minmax (TODO: broken -- fix this):
-                    var value = values
-                        .GroupBy(a => a.path, (k, v) => (k, v.Max(a => a.value)))
-                        .Min(a => a.Item2);
+                    var value = values.Max();
 
                     if (value > 0)
                         logger2.Log($" - {value}");
@@ -311,21 +323,6 @@ namespace WordleSolver
                     return (guess1.ToString(), value);
                 }).ToList();
             }
-        }
-
-        private static int RunLevel1(IReadOnlyList<Word> candidateWords, Word guess, Logger logger)
-        {
-            var value = AllAnswers.AsParallel().Max(answer =>
-            {
-                var logger2 = logger.SubLogger(answer);
-                var value = candidateWords.Count(word => GetAnswer(guess, word) == answer);
-                if (value > 0)
-                    logger2.Log($" - {value}");
-                return value;
-            });
-            if (value > 0)
-                logger.Log($" - {value}");
-            return value;
         }
 
         private static List<Word> RemoveCandidates(IReadOnlyList<Word> candidates, Word guess, Word answer)
