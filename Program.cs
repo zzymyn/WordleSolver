@@ -1,4 +1,5 @@
 ﻿using Mono.Options;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Text.RegularExpressions;
@@ -7,6 +8,12 @@ namespace WordleSolver
 {
     internal partial class Program
     {
+        private enum OperationMode
+        {
+            Level1,
+            Level2,
+        }
+
         [DebuggerDisplay("{DebuggerDisplay,nq}")]
         private struct Word : IEquatable<Word>
         {
@@ -122,16 +129,16 @@ namespace WordleSolver
         {
             "00000", "00001", "00002", "00010", "00011", "00012", "00020", "00021", "00022", "00100", "00101", "00102", "00110", "00111", "00112", "00120", "00121", "00122", "00200", "00201", "00202", "00210", "00211", "00212", "00220", "00221", "00222", "01000", "01001", "01002", "01010", "01011", "01012", "01020", "01021", "01022", "01100", "01101", "01102", "01110", "01111", "01112", "01120", "01121", "01122", "01200", "01201", "01202", "01210", "01211", "01212", "01220", "01221", "01222", "02000", "02001", "02002", "02010", "02011", "02012", "02020", "02021", "02022", "02100", "02101", "02102", "02110", "02111", "02112", "02120", "02121", "02122", "02200", "02201", "02202", "02210", "02211", "02212", "02220", "02221", "02222", "10000", "10001", "10002", "10010", "10011", "10012", "10020", "10021", "10022", "10100", "10101", "10102", "10110", "10111", "10112", "10120", "10121", "10122", "10200", "10201", "10202", "10210", "10211", "10212", "10220", "10221", "10222", "11000", "11001", "11002", "11010", "11011", "11012", "11020", "11021", "11022", "11100", "11101", "11102", "11110", "11111", "11112", "11120", "11121", "11122", "11200", "11201", "11202", "11210", "11211", "11212", "11220", "11221", "11222", "12000", "12001", "12002", "12010", "12011", "12012", "12020", "12021", "12022", "12100", "12101", "12102", "12110", "12111", "12112", "12120", "12121", "12122", "12200", "12201", "12202", "12210", "12211", "12212", "12220", "12221", "20000", "20001", "20002", "20010", "20011", "20012", "20020", "20021", "20022", "20100", "20101", "20102", "20110", "20111", "20112", "20120", "20121", "20122", "20200", "20201", "20202", "20210", "20211", "20212", "20220", "20221", "20222", "21000", "21001", "21002", "21010", "21011", "21012", "21020", "21021", "21022", "21100", "21101", "21102", "21110", "21111", "21112", "21120", "21121", "21122", "21200", "21201", "21202", "21210", "21211", "21212", "21220", "21221", "22000", "22001", "22002", "22010", "22011", "22012", "22020", "22021", "22022", "22100", "22101", "22102", "22110", "22111", "22112", "22120", "22121", "22200", "22201", "22202", "22210", "22211", "22220", "22222"
         };
-        private static readonly Regex ArgMatch = new Regex(@"^([a-zA-Z]{5}):([012]{5})$");
+        private static readonly Regex ArgMatch = new(@"^([a-zA-Z]{5}):([012]{5})$");
 
         private static readonly List<(Word guess, Word answer)> Guesses = new();
         private static readonly List<List<Word>> ExplicitGuessWords = new();
-        private static int Level = 1;
         private static bool PrintHelp;
         private static int Verbosity;
         private static bool HardMode;
         private static bool Force;
         private static int Count = 10;
+        private static OperationMode Mode = OperationMode.Level1;
 
         static int Main(string[] args)
         {
@@ -148,7 +155,21 @@ namespace WordleSolver
                     ExplicitGuessWords.Add(words);
                 }},
                 { "c|count=", "Maximum number of potential guesses to print (default 10)", (int a) => Count = a },
-                { "l|level=", "set operation level 1 or 2 (default level 1).\nNote: anything above level 1 isn't useful for solving a game.", (int a) => Level = a },
+                { "m|mode=", "set operation mode (default 'level1').", a =>
+                {
+                    if (a == "1" || a.Equals("level1", StringComparison.OrdinalIgnoreCase))
+                    {
+                        Mode = OperationMode.Level1;
+                    }
+                    else if (a == "2" || a.Equals("level2", StringComparison.OrdinalIgnoreCase))
+                    {
+                        Mode = OperationMode.Level2;
+                    }
+                    else
+                    {
+                        throw new Exception($"Invalid mode '{a}'.");
+                    }
+                }},
                 { "v|verbose:", "Increase [or set] verbosity level.", (int? a) =>
                 {
                     Verbosity = a ?? (Verbosity + 1);
@@ -169,9 +190,7 @@ namespace WordleSolver
                     Guesses.Add((m.Groups[1].Value, m.Groups[2].Value));
                 }
 
-                if (Level < 1 || Level > 2)
-                    throw new Exception("Operation level can only be 1 or 2.");
-                if (Level == 2 && ExplicitGuessWords.Count <= 0 && Guesses.Count <= 0 && !Force)
+                if (Mode == OperationMode.Level2 && ExplicitGuessWords.Count <= 0 && Guesses.Count <= 0 && !Force)
                     throw new Exception("Must provide word list or guresses for operation level 2 (use --force to override).");
             }
             catch (OptionException ex)
@@ -202,10 +221,10 @@ namespace WordleSolver
                 return 0;
             }
 
-            if (ExplicitGuessWords.Count <= 0 && Guesses.Count <= 0 && Level == 1 && !Force)
+            if (ExplicitGuessWords.Count <= 0 && Guesses.Count <= 0 && Mode == OperationMode.Level1 && !Force)
             {
-                Console.WriteLine($"Best first guess is: RAISE");
-                Console.WriteLine($"You can also try: ARISE, AROSE, RATIO, IRATE, ALERT, ALTER, LATER");
+                Console.WriteLine($"Best first guess is: LATER");
+                Console.WriteLine($"You can also try: SIREN, TEARY, RISEN, RAISE");
                 Console.WriteLine($"These initial guesses are hard-coded, use --force to override.");
                 Console.WriteLine();
                 return 0;
@@ -240,16 +259,43 @@ namespace WordleSolver
                 Console.WriteLine();
             }
 
-            var allValues = RunLevel(candidateWords, Level, logger);
+            return Mode switch
+            {
+                OperationMode.Level1 => MainLevel1(logger, candidateWords),
+                OperationMode.Level2 => MainLevel2(logger, candidateWords),
+                _ => throw new InvalidOperationException(),
+            };
+        }
+
+        private static int MainLevel1(Logger logger, List<Word> candidateWords)
+        {
+            var allValues = RunLevel1(candidateWords, logger);
 
             if (Verbosity > 0)
                 Console.WriteLine();
 
             Console.WriteLine("Best next guesses:");
 
-            foreach (var (path, value) in allValues.Where(a => a.value > 0).OrderBy(a => a.value).Take(Count))
+            foreach (var (word, value) in allValues.Where(a => a.value > 0).OrderBy(a => a.value).Take(Count))
             {
-                Console.WriteLine($"{path} - {value}");
+                Console.WriteLine($"{word} - {value}");
+            }
+
+            return 0;
+        }
+
+        private static int MainLevel2(Logger logger, List<Word> candidateWords)
+        {
+            var allValues = RunLevel2(candidateWords, logger);
+
+            if (Verbosity > 0)
+                Console.WriteLine();
+
+            Console.WriteLine("Best next guesses:");
+
+            foreach (var (path, value1, value2) in allValues.Where(a => a.value2 > 0).OrderBy(a => a.value2).Take(Count))
+            {
+                Console.WriteLine($"{path} - {value1},{value2}");
             }
 
             return 0;
@@ -257,72 +303,71 @@ namespace WordleSolver
 
         private static IReadOnlyList<Word> GetGuessWordsForPly(int ply, IReadOnlyList<Word> candidateWords)
         {
-            if (Level - 1 - ply < ExplicitGuessWords.Count)
-                return ExplicitGuessWords[Level - 1 - ply];
+            int index = Mode switch
+            {
+                OperationMode.Level1 => 0,
+                OperationMode.Level2 => 1 - ply,
+                _ => 0,
+            };
+            if (index >= 0 && index < ExplicitGuessWords.Count)
+                return ExplicitGuessWords[index];
             if (HardMode)
                 return candidateWords;
             return AllWords;
         }
 
-        private static List<(string path, int value)> RunLevel(IReadOnlyList<Word> candidateWords, int level, Logger logger)
+        private static List<(Word word, int value)> RunLevel1(IReadOnlyList<Word> candidateWords, Logger logger)
         {
-            if (level <= 1)
+            return P(GetGuessWordsForPly(0, candidateWords)).Select(guess =>
             {
-                return GetGuessWordsForPly(0, candidateWords).AsParallel().Select(guess =>
+                var logger2 = logger.SubLogger(guess);
+
+                var value = AllAnswers.Max(answer =>
                 {
-                    var logger2 = logger.SubLogger(guess);
-
-                    var value = AllAnswers.AsParallel().Max(answer =>
-                    {
-                        var logger3 = logger2.SubLogger(answer);
-                        var value = candidateWords.Count(word => GetAnswer(guess, word) == answer);
-                        if (value > 0)
-                            logger3.Log($" - {value}");
-                        return value;
-                    });
-
+                    var logger3 = logger2.SubLogger(answer);
+                    var value = candidateWords.Count(word => GetAnswer(guess, word) == answer);
                     if (value > 0)
-                        logger2.Log($" - {value}");
+                        logger3.Log($" - {value}");
+                    return value;
+                });
 
-                    return (guess.ToString(), value);
-                }).ToList();
-            }
-            else
+                if (value > 0)
+                    logger2.Log($" - {value}");
+
+                return (guess, value);
+            }).ToList();
+        }
+
+        private static List<(Word word, int value1, int value2)> RunLevel2(IReadOnlyList<Word> candidateWords, Logger logger)
+        {
+            return GetGuessWordsForPly(1, candidateWords).Select(guess1 =>
             {
-                return GetGuessWordsForPly(1, candidateWords).Select(guess1 =>
+                var logger2 = logger.SubLogger(guess1);
+
+                var values = AllAnswers.Select(answer1 =>
                 {
-                    var logger2 = logger.SubLogger(guess1);
+                    var logger3 = logger2.SubLogger(answer1);
+                    var next = RemoveCandidates(candidateWords, guess1, answer1);
+                    var values = RunLevel1(next, logger3)
+                        .Where(a => a.value > 0).OrderBy(a => a.value).Take(1).ToList();
 
-                    var values = AllAnswers.Select(answer1 =>
+                    var value1 = next.Count;
+                    var value2 = values.Count <= 0 ? 0 : values[0].value;
+                    if (value2 > 0)
                     {
-                        var logger3 = logger2.SubLogger(answer1);
-                        var next = RemoveCandidates(candidateWords, guess1, answer1);
-                        var values = RunLevel(next, 0, logger3)
-                            .Where(a => a.value > 0).OrderBy(a => a.value).Take(1).ToList();
-                        if (values.Count > 0)
-                        {
-                            var value = values[0].value;
-                            if (value > 0)
-                            {
-                                logger3.Log($" - {value}");
-                            }
-                            return value;
-                        }
-                        else
-                        {
-                            return 0;
-                        }
-                    }).ToList();
-
-                    // minmax (TODO: broken -- fix this):
-                    var value = values.Max();
-
-                    if (value > 0)
-                        logger2.Log($" - {value}");
-
-                    return (guess1.ToString(), value);
+                        logger3.Log($" - {value1},{value2}");
+                    }
+                    return (value1, value2);
                 }).ToList();
-            }
+
+                var value1 = values.Max(a => a.value1);
+                var value2 = values.Max(a => a.value2);
+
+                if (value2 > 0)
+                    logger2.Log($" - {value1},{value2}");
+
+                return (guess1, value1, value2);
+            }).ToList();
         }
 
         private static List<Word> RemoveCandidates(IReadOnlyList<Word> candidates, Word guess, Word answer)
@@ -336,6 +381,11 @@ namespace WordleSolver
             }
 
             return result;
+        }
+
+        private static ParallelQuery<T> P<T>(IReadOnlyList<T> list)
+        {
+            return Partitioner.Create((IList<T>)list, false).AsParallel();
         }
     }
 }
