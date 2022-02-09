@@ -301,7 +301,7 @@ namespace WordleSolver
             return 0;
         }
 
-        private static IReadOnlyList<Word> GetGuessWordsForPly(int ply, IReadOnlyList<Word> candidateWords)
+        private static List<Word> GetGuessWordsForPly(int ply, List<Word> candidateWords)
         {
             int index = Mode switch
             {
@@ -313,10 +313,10 @@ namespace WordleSolver
                 return ExplicitGuessWords[index];
             if (HardMode)
                 return candidateWords;
-            return AllWords;
+            return new(AllWords);
         }
 
-        private static List<(Word word, int value)> RunLevel1(IReadOnlyList<Word> candidateWords, Logger logger)
+        private static List<(Word word, int value)> RunLevel1(List<Word> candidateWords, Logger logger)
         {
             return P(GetGuessWordsForPly(0, candidateWords)).Select(guess =>
             {
@@ -349,7 +349,7 @@ namespace WordleSolver
             }).ToList();
         }
 
-        private static List<(Word word, int value1, int value2)> RunLevel2(IReadOnlyList<Word> candidateWords, Logger logger)
+        private static List<(Word word, int value1, int value2)> RunLevel2(List<Word> candidateWords, Logger logger)
         {
             return GetGuessWordsForPly(1, candidateWords).Select(guess1 =>
             {
@@ -381,7 +381,7 @@ namespace WordleSolver
             }).ToList();
         }
 
-        private static List<Word> RemoveCandidates(IReadOnlyList<Word> candidates, Word guess, Word answer)
+        private static List<Word> RemoveCandidates(List<Word> candidates, Word guess, Word answer)
         {
             var result = new List<Word>();
 
@@ -394,9 +394,9 @@ namespace WordleSolver
             return result;
         }
 
-        private static ParallelQuery<T> P<T>(IReadOnlyList<T> list)
+        private static ParallelQuery<T> P<T>(List<T> list)
         {
-            return Partitioner.Create((IList<T>)list, false).AsParallel();
+            return Partitioner.Create(list, false).AsParallel();
         }
     }
 }
