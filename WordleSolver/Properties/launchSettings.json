@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "WordleSolver": {
+      "commandName": "Project",
+      "commandLineArgs": "-f"
+    }
+  }
+}

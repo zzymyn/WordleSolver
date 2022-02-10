@@ -6,9 +6,9 @@
 <#@ output extension=".cs" #>
 namespace WordleSolver
 {
-    internal partial class Program
+    public partial struct Word
     {
-        private static bool CheckAnswer(Word gs, Word ss, Word ans)
+        public static bool CheckAnswer(Word gs, Word ss, Word ans)
         {
 <# for (int i = 0; i < 5; ++i) { #>
             if (gs.C<#=i#> == ss.C<#=i#>)

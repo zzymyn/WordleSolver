@@ -1,8 +1,8 @@
 ﻿namespace WordleSolver
 {
-    internal partial class Program
+    public partial struct Word
     {
-        private static bool CheckAnswer(Word gs, Word ss, Word ans)
+        public static bool CheckAnswer(Word gs, Word ss, Word ans)
         {
             if (gs.C0 == ss.C0)
             {
