@@ -1,6 +1,10 @@
 {
   "profiles": {
-    "WordleSolver": {
+    "Level 2 Test": {
+      "commandName": "Project",
+      "commandLineArgs": "-m2 -w RAISE -v:2"
+    },
+    "Level 1 Test": {
       "commandName": "Project",
       "commandLineArgs": "-f"
     }
