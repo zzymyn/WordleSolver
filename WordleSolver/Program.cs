@@ -11,6 +11,7 @@ namespace WordleSolver
         {
             Level1,
             Level2,
+            Level2Blind
         }
 
         private static readonly Regex ArgMatch = new(@"^([a-zA-Z]{5}):([012]{5})$");
@@ -30,7 +31,7 @@ namespace WordleSolver
             var options = new OptionSet()
             {
                 { "?|help", "Print help.", _ => PrintHelp = true },
-                { "a|all", "Allow all 12,973 allowed words to be used as a guess.\nBy default WordleSolver only searches guesses from the 2,315 possible solutions.\nEnabling this option will be more optimal, but slower.", _ => AllWords = true },
+                { "a|all", "Allow all 12,973 words to be used as a guess.\nBy default WordleSolver only searches guesses from the 2,315 possible solutions.\nEnabling this option will be more optimal, but slower.", _ => AllWords = true },
                 { "w|words=", "Only try these words as guesses, comma separated.", a =>
                 {
                     var words = new List<Word>();
@@ -41,7 +42,7 @@ namespace WordleSolver
                     ExplicitGuessWords.Add(words);
                 }},
                 { "c|count=", "Maximum number of potential guesses to print (default 10)", (int a) => Count = a },
-                { "m|mode=", "set operation mode (default 'level1').", a =>
+                { "m|mode=", "Set operation mode (default 'level1').\n1 | level1: 1-ply min-max search.\n\n2 | level2: 2-ply min-max search.\n\n2b | level2blind: 2-ply search, where both words are decided before any answers have been seen.", a =>
                 {
                     if (a == "1" || a.Equals("level1", StringComparison.OrdinalIgnoreCase))
                     {
@@ -50,6 +51,10 @@ namespace WordleSolver
                     else if (a == "2" || a.Equals("level2", StringComparison.OrdinalIgnoreCase))
                     {
                         Mode = OperationMode.Level2;
+                    }
+                    else if (a.Equals("2b", StringComparison.OrdinalIgnoreCase) || a.Equals("level2blind", StringComparison.OrdinalIgnoreCase))
+                    {
+                        Mode = OperationMode.Level2Blind;
                     }
                     else
                     {
@@ -149,6 +154,7 @@ namespace WordleSolver
             {
                 OperationMode.Level1 => MainLevel1(logger, candidateWords),
                 OperationMode.Level2 => MainLevel2(logger, candidateWords),
+                OperationMode.Level2Blind => MainLevel2Blind(logger, candidateWords),
                 _ => throw new InvalidOperationException(),
             };
         }
@@ -162,9 +168,9 @@ namespace WordleSolver
 
             Console.WriteLine("Best next guesses:");
 
-            foreach (var (word, value) in allValues.Where(a => a.value > 0).OrderBy(a => a.value).Take(Count))
+            foreach (var (guess, value) in allValues.Where(a => a.value > 0).OrderBy(a => a.value).Take(Count))
             {
-                Console.WriteLine($"{word} - {value}");
+                Console.WriteLine($"{guess} - {value}");
             }
 
             return 0;
@@ -179,9 +185,26 @@ namespace WordleSolver
 
             Console.WriteLine("Best next guesses:");
 
-            foreach (var (path, value1, value2) in allValues.Where(a => a.value2 > 0).OrderBy(a => a.value2).Take(Count))
+            foreach (var (guess, value1, value2) in allValues.Where(a => a.value2 > 0).OrderBy(a => a.value2).Take(Count))
             {
-                Console.WriteLine($"{path} - {value1},{value2}");
+                Console.WriteLine($"{guess} - {value1},{value2}");
+            }
+
+            return 0;
+        }
+
+        private static int MainLevel2Blind(Logger logger, List<Word> candidateWords)
+        {
+            var allValues = RunLevel2Blind(candidateWords, logger);
+
+            if (Verbosity > 0)
+                Console.WriteLine();
+
+            Console.WriteLine("Best two next guesses:");
+
+            foreach (var (guess1, guess2, value) in allValues.Where(a => a.value > 0).OrderBy(a => a.value).Take(Count))
+            {
+                Console.WriteLine($"{guess1}:{guess2} - {value}");
             }
 
             return 0;
@@ -193,7 +216,8 @@ namespace WordleSolver
             {
                 OperationMode.Level1 => 0,
                 OperationMode.Level2 => 1 - ply,
-                _ => 0,
+                OperationMode.Level2Blind => 1 - ply,
+                _ => throw new InvalidOperationException(),
             };
             if (index >= 0 && index < ExplicitGuessWords.Count)
                 return ExplicitGuessWords[index];
@@ -271,6 +295,49 @@ namespace WordleSolver
                     logger2?.Log($" - {maxValue1},{maxValue2}");
 
                 return (guess1, maxValue1, maxValue2);
+            }).ToList();
+        }
+
+        private static List<(Word word1, Word word2, int value)> RunLevel2Blind(List<Word> candidateWords, Logger? logger)
+        {
+            return GetGuessWordsForPly(1, candidateWords).SelectMany(guess1 =>
+            {
+                var logger2 = logger?.SubLogger(guess1);
+                return P(GetGuessWordsForPly(0, candidateWords)).Select(guess2 =>
+                {
+                    var logger3 = logger2?.SubLogger(guess2, 0);
+
+                    var maxValue = 0;
+
+                    foreach (var answer1 in Words.AllAnswers)
+                    {
+                        var logger4 = logger3?.SubLogger(answer1);
+                        foreach (var answer2 in Words.AllAnswers)
+                        {
+                            var logger5 = logger4?.SubLogger(answer2, 0);
+                            var value = 0;
+
+                            foreach (var word in candidateWords)
+                            {
+                                if (Word.CheckAnswer(guess1, word, answer1) && Word.CheckAnswer(guess2, word, answer2))
+                                {
+                                    ++value;
+                                }
+                            }
+
+                            if (value > 0)
+                                logger5?.Log($" - {value}");
+
+                            if (value > maxValue)
+                                maxValue = value;
+                        }
+                    }
+
+                    if (maxValue > 0)
+                        logger3?.Log($" - {maxValue}");
+
+                    return (guess1, guess2, maxValue);
+                });
             }).ToList();
         }
 

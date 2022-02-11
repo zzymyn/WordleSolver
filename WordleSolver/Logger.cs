@@ -17,17 +17,17 @@
             Level = level;
         }
 
-        public Logger SubLogger(string prefix)
+        public Logger SubLogger(string prefix, int level = 1)
         {
-            return new Logger(Prefix.Length == 0 ? prefix : $"{Prefix}:{prefix}", Level - 1);
+            return new Logger(Prefix.Length == 0 ? prefix : $"{Prefix}:{prefix}", Level - level);
         }
 
-        public Logger? SubLogger<T>(T a)
+        public Logger? SubLogger<T>(T a, int level = 1)
             where T : notnull
         {
             if (Level > 0)
             {
-                return SubLogger(a.ToString() ?? "");
+                return SubLogger(a.ToString() ?? "", level);
             }
             else
             {
