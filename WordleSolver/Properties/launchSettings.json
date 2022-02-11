@@ -2,7 +2,7 @@
   "profiles": {
     "Level 2 Test": {
       "commandName": "Project",
-      "commandLineArgs": "-m2 -w RAISE -v:2"
+      "commandLineArgs": "-m2 -w RAISE -v:2 -a"
     },
     "Level 1 Test": {
       "commandName": "Project",
