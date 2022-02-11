@@ -86,8 +86,15 @@ namespace WordleSolver
                     Guesses.Add((m.Groups[1].Value, m.Groups[2].Value));
                 }
 
-                if (Mode == OperationMode.Level2 && ExplicitGuessWords.Count <= 0 && Guesses.Count <= 0 && !Force)
-                    throw new Exception("Must provide word list or guresses for operation level 2 (use --force to override).");
+                switch (Mode)
+                {
+                    case OperationMode.Level2:
+                    case OperationMode.Level2Blind:
+                    case OperationMode.WholeGame:
+                        if (ExplicitGuessWords.Count <= 0 && !Force)
+                            throw new Exception("Word list (--words) should be provided for this operation mode or it will be extremely slow (use --force to override).");
+                        break;
+                }
             }
             catch (OptionException ex)
             {
