@@ -11,7 +11,8 @@ namespace WordleSolver
         {
             Level1,
             Level2,
-            Level2Blind
+            Level2Blind,
+            WholeGame,
         }
 
         private static readonly Regex ArgMatch = new(@"^([a-zA-Z]{5}):([012]{5})$");
@@ -42,7 +43,7 @@ namespace WordleSolver
                     ExplicitGuessWords.Add(words);
                 }},
                 { "c|count=", "Maximum number of potential guesses to print (default 10)", (int a) => Count = a },
-                { "m|mode=", "Set operation mode (default 'level1').\n1 | level1: 1-ply min-max search.\n\n2 | level2: 2-ply min-max search.\n\n2b | level2blind: 2-ply search, where both words are decided before any answers have been seen.", a =>
+                { "m|mode=", "Set operation mode (default 'level1').\n1 | level1: 1-ply min-max search.\n\n2 | level2: 2-ply min-max search.\n\n2b | level2blind: 2-ply search, where both words are decided before any answers have been seen.\n\ng | game: play the whole game.", a =>
                 {
                     if (a == "1" || a.Equals("level1", StringComparison.OrdinalIgnoreCase))
                     {
@@ -55,6 +56,10 @@ namespace WordleSolver
                     else if (a.Equals("2b", StringComparison.OrdinalIgnoreCase) || a.Equals("level2blind", StringComparison.OrdinalIgnoreCase))
                     {
                         Mode = OperationMode.Level2Blind;
+                    }
+                    else if (a == "g" || a.Equals("game", StringComparison.OrdinalIgnoreCase))
+                    {
+                        Mode = OperationMode.WholeGame;
                     }
                     else
                     {
@@ -114,8 +119,8 @@ namespace WordleSolver
 
             if (ExplicitGuessWords.Count <= 0 && Guesses.Count <= 0 && Mode == OperationMode.Level1 && !Force)
             {
-                Console.WriteLine($"Best first guess is: LATER");
-                Console.WriteLine($"You can also try: SIREN, TEARY, RISEN, RAISE");
+                Console.WriteLine($"Best first guess is: STOLE");
+                Console.WriteLine($"You can also try: ARISE, RAISE, TRACE");
                 Console.WriteLine($"These initial guesses are hard-coded, use --force to override.");
                 Console.WriteLine();
                 return 0;
@@ -155,6 +160,7 @@ namespace WordleSolver
                 OperationMode.Level1 => MainLevel1(logger, candidateWords),
                 OperationMode.Level2 => MainLevel2(logger, candidateWords),
                 OperationMode.Level2Blind => MainLevel2Blind(logger, candidateWords),
+                OperationMode.WholeGame => MainWholeGame(logger, candidateWords),
                 _ => throw new InvalidOperationException(),
             };
         }
@@ -210,17 +216,27 @@ namespace WordleSolver
             return 0;
         }
 
+        private static int MainWholeGame(Logger logger, List<Word> candidateWords)
+        {
+            var allValues = RunWholeGame(candidateWords, logger);
+
+            if (Verbosity > 0)
+                Console.WriteLine();
+
+            Console.WriteLine("Results:");
+
+            foreach (var (word1, avgGuesses, worstCase) in allValues)
+            {
+                Console.WriteLine($"{word1} - {avgGuesses:0.00000} - {worstCase}");
+            }
+
+            return 0;
+        }
+
         private static List<Word> GetGuessWordsForPly(int ply, List<Word> candidateWords)
         {
-            int index = Mode switch
-            {
-                OperationMode.Level1 => 0,
-                OperationMode.Level2 => 1 - ply,
-                OperationMode.Level2Blind => 1 - ply,
-                _ => throw new InvalidOperationException(),
-            };
-            if (index >= 0 && index < ExplicitGuessWords.Count)
-                return ExplicitGuessWords[index];
+            if (ply >= 0 && ply < ExplicitGuessWords.Count)
+                return ExplicitGuessWords[ply];
             if (HardMode)
                 return candidateWords;
             if (AllWords)
@@ -228,9 +244,9 @@ namespace WordleSolver
             return Words.AllSolutions;
         }
 
-        private static List<(Word word, int value)> RunLevel1(List<Word> candidateWords, Logger? logger)
+        private static List<(Word word, int value)> RunLevel1(List<Word> candidateWords, Logger? logger, int ply = 0)
         {
-            return P(GetGuessWordsForPly(0, candidateWords)).Select(guess =>
+            return P(GetGuessWordsForPly(ply, candidateWords)).Select(guess =>
             {
                 var logger2 = logger?.SubLogger(guess);
 
@@ -263,9 +279,9 @@ namespace WordleSolver
             }).ToList();
         }
 
-        private static List<(Word word, int value1, int value2)> RunLevel2(List<Word> candidateWords, Logger? logger)
+        private static List<(Word word, int value1, int value2)> RunLevel2(List<Word> candidateWords, Logger? logger, int ply = 0)
         {
-            return GetGuessWordsForPly(1, candidateWords).Select(guess1 =>
+            return GetGuessWordsForPly(0, candidateWords).Select(guess1 =>
             {
                 var logger2 = logger?.SubLogger(guess1);
 
@@ -276,7 +292,7 @@ namespace WordleSolver
                 {
                     var logger3 = logger2?.SubLogger(answer1);
                     var next = RemoveCandidates(candidateWords, guess1, answer1);
-                    var values = RunLevel1(next, logger3)
+                    var values = RunLevel1(next, logger3, 1)
                         .Where(a => a.value > 0).OrderBy(a => a.value).Take(1).ToList();
 
                     var value1 = next.Count;
@@ -300,10 +316,10 @@ namespace WordleSolver
 
         private static List<(Word word1, Word word2, int value)> RunLevel2Blind(List<Word> candidateWords, Logger? logger)
         {
-            return GetGuessWordsForPly(1, candidateWords).SelectMany(guess1 =>
+            return GetGuessWordsForPly(0, candidateWords).SelectMany(guess1 =>
             {
                 var logger2 = logger?.SubLogger(guess1);
-                return P(GetGuessWordsForPly(0, candidateWords)).Select(guess2 =>
+                return P(GetGuessWordsForPly(1, candidateWords)).Select(guess2 =>
                 {
                     var logger3 = logger2?.SubLogger(guess2, 0);
 
@@ -341,6 +357,86 @@ namespace WordleSolver
             }).ToList();
         }
 
+        private static List<(Word word1, double avgGuesses, int worstCase)> RunWholeGame(List<Word> candidateWords, Logger? logger)
+        {
+            return GetGuessWordsForPly(0, candidateWords).Select(guess1 =>
+            {
+                var logger2 = logger?.SubLogger(guess1);
+
+                var results = P(Words.AllSolutions, true).Select(solution =>
+                {
+                    var logger3 = logger2?.SubLogger(solution);
+
+                    var turn = 1;
+                    var wordsLeft = candidateWords;
+
+                    while (wordsLeft.Count > 0)
+                    {
+                        Word nextGuess;
+                        if (turn == 1)
+                        {
+                            nextGuess = guess1;
+                        }
+                        else if (wordsLeft.Count == 1)
+                        {
+                            nextGuess = wordsLeft[0];
+                        }
+                        else
+                        {
+                            nextGuess = WholeGameNextGuess(wordsLeft, turn);
+                        }
+
+                        if (nextGuess == solution)
+                        {
+                            logger3?.Log($"- {turn}");
+                            return turn;
+                        }
+
+                        wordsLeft = RemoveCandidates(wordsLeft, nextGuess, Word.GetAnswer(nextGuess, solution));
+                        ++turn;
+                    }
+
+                    throw new InvalidOperationException();
+                }).ToList();
+
+                return (guess1, results.Average(), results.Max());
+            }).ToList();
+        }
+
+        private static Word WholeGameNextGuess(List<Word> candidateWords, int ply)
+        {
+            var bestGuess = new Word();
+            var bestValue = int.MaxValue;
+
+            foreach (var guess in GetGuessWordsForPly(ply, candidateWords))
+            { 
+                var maxValue = 0;
+                foreach (var answer in Words.AllAnswers)
+                {
+                    // count valid candidates:
+                    var value = 0;
+                    foreach (var word in candidateWords)
+                    {
+                        if (Word.CheckAnswer(guess, word, answer))
+                        {
+                            ++value;
+                        }
+                    }
+
+                    if (value > maxValue)
+                        maxValue = value;
+                }
+
+                if (maxValue > 0 && maxValue < bestValue)
+                {
+                    bestGuess = guess;
+                    bestValue = maxValue;
+                }
+            }
+
+            return bestGuess;
+        }
+
         private static List<Word> RemoveCandidates(List<Word> candidates, Word guess, Word answer)
         {
             var result = new List<Word>();
@@ -354,9 +450,9 @@ namespace WordleSolver
             return result;
         }
 
-        private static ParallelQuery<T> P<T>(List<T> list)
+        private static ParallelQuery<T> P<T>(List<T> list, bool loadBalance = false)
         {
-            return Partitioner.Create(list, false).AsParallel();
+            return Partitioner.Create(list, loadBalance).AsParallel();
         }
     }
 }

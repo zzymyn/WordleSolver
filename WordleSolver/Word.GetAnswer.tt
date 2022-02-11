@@ -1,0 +1,60 @@
+﻿<#@ template debug="false" hostspecific="false" language="C#" #>
+<#@ assembly name="System.Core" #>
+<#@ import namespace="System.Linq" #>
+<#@ import namespace="System.Text" #>
+<#@ import namespace="System.Collections.Generic" #>
+<#@ output extension=".cs" #>
+namespace WordleSolver
+{
+    public partial struct Word
+    {
+        public static Word GetAnswer(Word gs, Word ss)
+        {
+            var ans = new Word('0', '0', '0', '0', '0');
+
+<# for (int i = 0; i < 5; ++i) { #>
+            if (gs.C<#=i#> == ss.C<#=i#>)
+            {
+                gs.C<#=i#> = '?';
+                ss.C<#=i#> = '!';
+                ans.C<#=i#> = '2';
+            }
+<# } #>
+
+<# for (int i = 0; i < 5; ++i) { #>
+            if (gs.C<#=i#> == ss.C0)
+            {
+                gs.C<#=i#> = '?';
+                ss.C0 = '!';
+                ans.C<#=i#> = '1';
+            }
+            else if (gs.C<#=i#> == ss.C1)
+            {
+                gs.C<#=i#> = '?';
+                ss.C1 = '!';
+                ans.C<#=i#> = '1';
+            }
+            else if (gs.C<#=i#> == ss.C2)
+            {
+                gs.C<#=i#> = '?';
+                ss.C2 = '!';
+                ans.C<#=i#> = '1';
+            }
+            else if (gs.C<#=i#> == ss.C3)
+            {
+                gs.C<#=i#> = '?';
+                ss.C3 = '!';
+                ans.C<#=i#> = '1';
+            }
+            else if (gs.C<#=i#> == ss.C4)
+            {
+                gs.C<#=i#> = '?';
+                ss.C4 = '!';
+                ans.C<#=i#> = '1';
+            }
+<# } #>
+
+            return ans;
+        }
+    }
+}

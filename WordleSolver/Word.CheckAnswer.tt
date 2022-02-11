@@ -4,68 +4,63 @@
 <#@ import namespace="System.Text" #>
 <#@ import namespace="System.Collections.Generic" #>
 <#@ output extension=".cs" #>
+using System.Runtime.CompilerServices;
+
 namespace WordleSolver
 {
     public partial struct Word
     {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool CheckAnswer(Word gs, Word ss, Word ans)
         {
-<# for (int i = 0; i < 5; ++i) { #>
+<#
+for (int i = 0; i < 5; ++i)
+{
+#>
             if (gs.C<#=i#> == ss.C<#=i#>)
             {
-                gs.C<#=i#> = '?';
-                ss.C<#=i#> = '!';
                 if (ans.C<#=i#> != '2')
                     return false;
+                gs.C<#=i#> = '?';
+                ss.C<#=i#> = '!';
             }
             else if (ans.C<#=i#> == '2')
             {
                 return false;
             }
-<# } #>
 
-<# for (int i = 0; i < 5; ++i) { #>
-            if (gs.C<#=i#> == ss.C0)
+<#
+}
+#>
+
+<#
+for (int i = 0; i < 5; ++i)
+{
+    var first = true;
+    for (int j = 0; j < 5; ++j)
+    {
+        if (i == j)
+            continue;
+        var prefix = first ? "" : "else ";
+        first = false;
+#>
+            <#=prefix#>if (gs.C<#=i#> == ss.C<#=j#>)
             {
-                gs.C<#=i#> = '?';
-                ss.C0 = '!';
                 if (ans.C<#=i#> != '1')
                     return false;
+                ss.C<#=j#> = '!';
             }
-            else if (gs.C<#=i#> == ss.C1)
-            {
-                gs.C<#=i#> = '?';
-                ss.C1 = '!';
-                if (ans.C<#=i#> != '1')
-                    return false;
-            }
-            else if (gs.C<#=i#> == ss.C2)
-            {
-                gs.C<#=i#> = '?';
-                ss.C2 = '!';
-                if (ans.C<#=i#> != '1')
-                    return false;
-            }
-            else if (gs.C<#=i#> == ss.C3)
-            {
-                gs.C<#=i#> = '?';
-                ss.C3 = '!';
-                if (ans.C<#=i#> != '1')
-                    return false;
-            }
-            else if (gs.C<#=i#> == ss.C4)
-            {
-                gs.C<#=i#> = '?';
-                ss.C4 = '!';
-                if (ans.C<#=i#> != '1')
-                    return false;
-            }
+<#
+    }
+#>
             else if (ans.C<#=i#> == '1')
             {
                 return false;
             }
-<# } #>
 
+<#
+}
+#>
             return true;
         }
     }

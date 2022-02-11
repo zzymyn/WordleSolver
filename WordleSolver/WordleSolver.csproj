@@ -12,6 +12,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="Word.GetAnswer.tt">
+      <LastGenOutput>Word.GetAnswer.cs</LastGenOutput>
+      <Generator>TextTemplatingFileGenerator</Generator>
+    </None>
     <None Update="Word.CheckAnswer.tt">
       <Generator>TextTemplatingFileGenerator</Generator>
       <LastGenOutput>Word.CheckAnswer.cs</LastGenOutput>
@@ -23,6 +27,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Update="Word.GetAnswer.cs">
+      <DependentUpon>Word.GetAnswer.tt</DependentUpon>
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+    </Compile>
     <Compile Update="Word.CheckAnswer.cs">
       <DesignTime>True</DesignTime>
       <AutoGen>True</AutoGen>

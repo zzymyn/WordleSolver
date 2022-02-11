@@ -6,11 +6,15 @@
     },
     "Level 1 Test": {
       "commandName": "Project",
-      "commandLineArgs": "-f"
+      "commandLineArgs": "-af"
     },
     "Level 2B Test": {
       "commandName": "Project",
       "commandLineArgs": "-m2b -v=2 -w RAISE"
+    },
+    "Whole Game": {
+      "commandName": "Project",
+      "commandLineArgs": "-mg -w RAISE -v2"
     }
   }
 }
